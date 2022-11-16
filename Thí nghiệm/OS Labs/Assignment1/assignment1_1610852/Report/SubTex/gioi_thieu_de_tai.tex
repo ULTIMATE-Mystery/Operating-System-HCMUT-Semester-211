@@ -1,0 +1,201 @@
+\section{Bước 1: Prepare Linux Kenel}
+
+\subsection{Bước 1.1: Preparation}
+
+\begin{itemize}
+	\item Ở bước này, ta thiết lập máy ảo (ở đây sử dụng Virtual Box trên hệ điều hành Window 10) và tải file ảnh Ubuntu tại đường dẫn trong assignment.
+	\item Sau đó cài các các gói cần thiết khi mới sử dụng ubuntu bằng lệnh install gói build-essential.
+	\item Cài đặt gói kernel-package.
+	\item Tạo thư mục \~/kernelbuild trong root cho việc chứa kernel.
+\end{itemize}
+
+
+\textbf{QUESTION}: Why we need to install kernel-package?
+
+\vspace{0.2cm}
+
+kerel-package là một gói tiện ích cho việc xây dụng 1 kernel trong linux. Gói này sẽ tự động hóa các bước thông thường được yêu cầu để biên dịch và cài đặt 1 kernel tùy chỉnh.
+
+\begin{itemize}
+	\item Tải kernel source và giải nén vào thư mục ~/kernelbuild.
+	\item Cài package openssl và libssl-dev
+\end{itemize}
+
+
+
+
+\textbf{QUESTION}:  Why we have to use another kernel source from the server such as http://www.kernel.org, can we compile the original kernel (the local kernel on the running OS) directly?
+
+\vspace{0.2cm}
+
+Ta cần làm việc bên trong nhân Linux, tức ta cần thay đổi cách hoạt động của kerlen (cụ thể ta cần tạo thêm system call mới do ta tự định nghĩa), do đó ta cần biên dịch lại kernel trên hệ thống của ta. Do đó ta cần sử dụng kernel source, ở đây ta tải từ kernel.org.
+
+Kernel.org là điểm phân phối các mã nguồn cho các kernel linux (dựa trên hệ điều hành linux). Trang web là kho lưu trữ tất cả các phiên bản mã nguồn kernel có sẵn cho người dùng.
+
+Ta không nên sử dụng kernel hệ thống để thực hiện compile.
+
+
+\subsection{Bước 1.2: Configuration}
+
+\begin{itemize}
+	\item Làm như các bước trong assignment.
+	\item Sau khi thêm mssv (1610852) trong lúc cấu hình trên GUI, ta kiểm tra lại trong file .config xem có dòng CONFIG\_LOCALVERSION=".1610852" chưa để kiểm tra thành công của bước này.
+\end{itemize}
+
+
+\section{Bước 2: System Call - procsched}
+
+\begin{itemize}
+	\item Ở bước này, ta xây dựng kernel thông qua 2 bước chính là kiểm tra thử với thư viện kernel module, sau đó hiện thực và cấu hình cần thiết trước khi biên dịch kernel mới.
+	\item Đầu tiên ta tìm hiểu các định nghĩa struct có sẵn trong các thư viện như assignment đã viết.
+\end{itemize}
+
+\subsection{Bước 2.1: Kernel Module}
+
+\begin{itemize}
+	\item Ở bước này, ta sử dụng thư viện kernel module để test thử chương trình của ta chạy đúng không.
+	\item Làm như các bước trong tut ở đường dẫn, thử với chương trình in ra 'Hello World':
+	\subitem + Copy Makefile như tut.
+	\subitem + Viết chương trình in ra dòng chữ 'Hello World'.
+	\subitem + Gọi make để tạo file .ko
+	\subitem + Gọi lệnh sudo insmod ./hello-1.ko để insert kernel này vào.
+	\subitem + Kiểm tra trong xem đã có kernel này chưa bằng lệnh  cat /proc/modules | grep hello, thấy output có hello-1.
+	\subitem + Xóa bỏ kernel này bằng lệnh sudo rmmod hello-1. Kiểm tra lại bằng lệnh cat ở trên thấy không có output, tức là đã xóa bỏ kernel này.
+	\subitem + Xem trong log hệ thống có dòng chữ 'Hello World' không, bằng lệnh dmesg, thấy có tức là kernel có hoạt động.
+	
+	\item Sau khi test thử với chương trình đơn giản trên, ta hiện thực chương trình cần làm.
+	\subitem + Viết file như assignment.
+	\subitem + Tìm các method để giải quyết yêu cầu. Mã nguồn nưư file đính kèm trong báo cáo.
+	\subitem + Kiểm tra lại thấy có in ra kết quả.
+\end{itemize}
+
+
+\subsection{Bước 2.2: Prototype}
+
+\begin{itemize}
+	\item Đọc định nghĩa prototype để biết cách hoạt động của hàm.
+	\item Hàm procsched trả về 0 nếu tìm thấy và trả về thông tin trong biến con trỏ info. Ngược lại trả về 1.
+	\item Sửa lại source code ở bước kiểm trả kernel ở trên theo đúng định nghĩa của hàm.
+	\item Kiểm tra lại kết quả với các pid ngẫu nhiên.
+\end{itemize}
+
+
+\subsection{Bước 2.3: Implementation}
+
+\begin{itemize}
+	\item Cấu hình như assignment.
+	\item Hiện thực code như ở bước kiểm tra kernel.
+\end{itemize}
+
+
+\textbf{QUESTION}: What is the meaning of other parts, i.e. i386, procsched, and sys procsched?
+
+\vspace{0.2cm}
+
+Mỗi system call đươc định nghĩa trong 1 hàng với các đối số theo thứ tự number, ABI, name, entry point và compat entry point.
+Trong đó mỗi đối số mang ý nghĩa:
+
+\begin{itemize}
+	\item \textbf{<number>}: Đây là số định danh riêng cho từng syscall ở mỗi loại máy 32-bit hoặc 64-bit. Khi người dùng thực hiện lời gọi system call, người dùng cần cung cấp số chỉ mục này để hệ thống tìm đúng lời gọi tương ứng.
+	\item \textbf{<abi>}: Application Binary Interface, mang giá trị "i386" cho hệ máy  32-bit (trong file syscall\_32.tbl) và ("common", "64" hoặc "x32") cho hệ máy 64-bit (trong file syscall\_64.tbl)
+	\item \textbf{<name>}: Tên gọi của system call, ví dụ gọi fork, exit, read, write, getpid, mkdir, ...
+	\item \textbf{<entry point>}: điểm bắt đầu của lời gọi hàm thực thi tác vụ.
+	\item \textbf{<compat entry point>}: (chỉ có ở file syscall\_32.tbl, tức cho hệ máy 32-bit) điểm bắt đầu của lời gọi hàm thực thi tác vụ khi người dụng sử dụng loại máy 64-bit (compat ở đây là từ khóa cho biết sự tương thích với các hệ máy khác)
+\end{itemize}
+
+\vspace{0.3cm}
+
+
+\textbf{QUESTION}:  What is the meaning of each line added in file include/linux/syscalls.h?
+
+\begin{itemize}
+	\item struct proc\_segs;
+	
+Dòng này khai báo 1 struct trong file header một cách thông thường.
+	
+	\item asmlinkage long sys\_procsched(int pid, struct proc\_segs * info);
+
+	+ Dòng này khai báo 1 hàm trong file header, nhưng ở đây là 1 hàm asmlinkage. Từ khóa asmlinkage nói cho trình biên dịch biết tìm các đối số hàm trên stack của CPU thay vì trên các thanh ghi.
+	
+	+ Tại sao lại phải làm như vậy? System calls là các dịch vụ mà userspace có thể gọi request tới kernel để thực hiện một số công việc, và các công việc này nằm trong kernel space. Các hàm xử lý các công việc này không giống như các hàm thông thường, các đối số được truyền thông qua program stack, chứ không phải qua thanh ghi như các hàm thông thường khác.
+\end{itemize}
+ 
+
+\section{Bước 3: Compiling Linux Kernel}
+
+\subsection{Bước 3.1: Build the configured kernel}
+
+Ở bước này ta thực hiện lệnh make và make modules như assignment để compile và build kernel.
+
+\vspace{0.2cm}
+
+\textbf{QUESTION}: What is the Omeaning of these two stages, namely “make” and “make modules”?
+
+\begin{itemize}
+	\item make:
+	
+	+ Dùng để biên dịch kernel source mà ta đã tải ở các bước trên. Nhưng ở đây kernel này ta đã thay đổi. Sau bước này sẽ tạo ra file vmlinuz.
+	
+	+ \textit{vmlinuz}: File vmlinuz là 1 file thực thi kernel linux. File này đã được nén lại và có thể giải nén và load vào hệ điều hành trong vùng nhớ.
+	
+	\item make modules:
+	
+	Dòng này dùng để biên dịch kernel modules.
+\end{itemize}
+
+
+\subsection{Bước 3.2: Installing the new kernel}
+
+Làm như các bước trong assignment.
+
+\subsection{Bước 3.3: Testing}
+
+Làm như các bước trong assignment.
+
+\vspace{0.2cm}
+
+\textbf{QUESTION}:Why this program could indicate whether our system works or not?
+
+\vspace{0.2cm}
+
+Ta gọi system call thông qua thư viện <sys/syscall.h> bằng lệnh syscall ([ number\_32], [pid], info);  với  number\_32  là số định danh của  procsched system call mà ta đã khai báo (ở đây là 377) trong file  syscall 32.tlb.
+
+Nếu kernel ta build thất bại, chương trình sẽ không hoạt động. Ngược lại, syscall sẽ trả về giá trị trong con trỏ info được truyền vào. Do đó với chương trình này ta có thể kiểm tra xem kernel đã được build thành công không.
+
+
+
+\section{Bước 4: Wrapper}
+
+Ở bước này ta thực hiện gói lại thành thư viện tiện cho người dùng cuối.
+
+\vspace{0.2cm}
+
+\text{\textbf{QUESTION}:Why we have to re-define proc segs struct while we have already defined it inside the kernel?}
+
+\vspace{0.2cm}
+
+Struct proc\_segs mà ta đã định nghĩa chỉ được sử dụng trong kerlen space (nằm trong kernel). Do đó để sử dụng bên ngoài userspace, ta cần định nghĩa lại một struct tương đương như một module tiện ích cho người dùng tiện sử dụng.
+
+\vspace{0.3cm}
+
+\textbf{QUESTION}: Why root privilege (e.g. adding sudo before the cp command) is required to copy the header file to /usr/include?
+
+\vspace{0.2cm}
+
+Lệnh sudo (superuserd do) được sử dụng như quyền của user root.
+Còn thư mục /usr/ được sử dụng bởi user root, do đó để thực hiện ghi chép file vào thư mục này ta cần dùng quyền của root bằng cách dùng sudo
+
+\vspace{0.3cm}
+
+\textbf{QUESTION}:Why we must put -share and -fpic option into gcc command?
+
+\vspace{0.2cm}
+
+Ý nghĩa của mỗi lệnh gcc là:
+
+\begin{itemize}
+	\item -shared: dùng để tạo ra một thư viện shared (shared library).
+	\item -fpic: dùng để tạo ra PIC (position-independent code) tương thích cho việc sử dụng một shared library.
+\end{itemize}
+
+Ta đang muốn tạo ra một file Shre Object (file .so, cụ thể libprocsched.so), file này có thể được liên kết tới các chương trình khác sử dụng thư viện của ta. Do đó ta phải thêm 2 option này như mục đích của chúng.
